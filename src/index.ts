@@ -54,6 +54,7 @@ export enum RecorderErrors {
   TypeError = "no_constraints",
   NONE = "",
   NO_RECORDER = "recorder_error",
+  UnsupportedBrowserError = "unsupported_browser",
 }
 
 export function useReactMediaRecorder({
@@ -114,7 +115,8 @@ export function useReactMediaRecorder({
 
   useEffect(() => {
     if (!window.MediaRecorder) {
-      throw new Error("Unsupported Browser");
+      setError(UnsupportedBrowserError);
+      return;
     }
 
     if (screen) {
