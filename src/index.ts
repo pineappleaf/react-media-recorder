@@ -115,7 +115,7 @@ export function useReactMediaRecorder({
 
   useEffect(() => {
     if (!window.MediaRecorder) {
-      setError(UnsupportedBrowserError);
+      setError("UnsupportedBrowserError");
       return;
     }
 
