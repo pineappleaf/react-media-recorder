@@ -167,26 +167,21 @@ export function useReactMediaRecorder({
         );
       }
     }
-
-    if (!mediaStream.current) {
-      getMediaStream();
-    }
   }, [audio, screen, video, getMediaStream, mediaRecorderOptions]);
+
+  useEffect(() => {
+    console.log("getting media stream");
+    getMediaStream();
+  }, [audio, screen, video]);
 
   // Media Recorder Handlers
 
   const startRecording = useCallback(async () => {
     setError("NONE");
-    if (!mediaStream.current) {
-      await getMediaStream();
-    }
     if (mediaStream.current) {
       const isStreamEnded = mediaStream.current
         .getTracks()
         .some((track) => track.readyState === "ended");
-      if (isStreamEnded) {
-        await getMediaStream();
-      }
       mediaRecorder.current = new MediaRecorder(mediaStream.current);
       mediaRecorder.current.ondataavailable = onRecordingActive;
       mediaRecorder.current.onstop = onRecordingStop;
