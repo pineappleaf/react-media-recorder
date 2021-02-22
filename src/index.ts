@@ -1,4 +1,11 @@
-import { ReactElement, useCallback, useEffect, useRef, useState } from "react";
+import {
+  ReactElement,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from "react";
 
 export type ReactMediaRecorderRenderProps = {
   error: string;
@@ -164,7 +171,7 @@ export function useReactMediaRecorder({
 
   // Media Recorder Handlers
 
-  const startRecording = async () => {
+  const startRecording = useCallback(async () => {
     setError("NONE");
     if (!mediaStream.current) {
       await getMediaStream();
@@ -187,17 +194,20 @@ export function useReactMediaRecorder({
       mediaRecorder.current.start();
       setStatus("recording");
     }
-  };
+  }, [mediaStream.current, setError, setStatus]);
 
-  const onRecordingActive = ({ data }: BlobEvent) => {
-    mediaChunks.current.push(data);
-  };
+  const onRecordingActive = useCallback(
+    ({ data }: BlobEvent) => {
+      mediaChunks.current.push(data);
+    },
+    [mediaChunks.current]
+  );
 
-  const onRecordingStart = () => {
+  const onRecordingStart = useCallback(() => {
     onStart();
-  };
+  }, [onStart]);
 
-  const onRecordingStop = () => {
+  const onRecordingStop = useCallback(() => {
     const [chunk] = mediaChunks.current;
     const blobProperty: BlobPropertyBag = Object.assign(
       { type: chunk.type },
@@ -208,29 +218,32 @@ export function useReactMediaRecorder({
     setStatus("stopped");
     setMediaBlobUrl(url);
     onStop(url, blob);
-  };
+  }, [mediaChunks.current, setMediaBlobUrl, onStop, setStatus]);
 
-  const muteAudio = (mute: boolean) => {
-    setIsAudioMuted(mute);
-    if (mediaStream.current) {
-      mediaStream.current
-        .getAudioTracks()
-        .forEach((audioTrack) => (audioTrack.enabled = !mute));
-    }
-  };
+  const muteAudio = useCallback(
+    (mute: boolean) => {
+      setIsAudioMuted(mute);
+      if (mediaStream.current) {
+        mediaStream.current
+          .getAudioTracks()
+          .forEach((audioTrack) => (audioTrack.enabled = !mute));
+      }
+    },
+    [setIsAudioMuted, mediaStream.current]
+  );
 
-  const pauseRecording = () => {
+  const pauseRecording = useCallback(() => {
     if (mediaRecorder.current && mediaRecorder.current.state === "recording") {
       mediaRecorder.current.pause();
     }
-  };
-  const resumeRecording = () => {
+  }, [mediaRecorder.current]);
+  const resumeRecording = useCallback(() => {
     if (mediaRecorder.current && mediaRecorder.current.state === "paused") {
       mediaRecorder.current.resume();
     }
-  };
+  }, [mediaRecorder.current]);
 
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     if (mediaRecorder.current) {
       if (mediaRecorder.current.state !== "inactive") {
         setStatus("stopping");
@@ -242,24 +255,36 @@ export function useReactMediaRecorder({
         mediaChunks.current = [];
       }
     }
-  };
+  }, [mediaRecorder.current, setStatus, stopStreamsOnStop]);
 
-  return {
-    error: RecorderErrors[error],
-    muteAudio: () => muteAudio(true),
-    unMuteAudio: () => muteAudio(false),
+  return useMemo(() => {
+    return {
+      error: RecorderErrors[error],
+      muteAudio: () => muteAudio(true),
+      unMuteAudio: () => muteAudio(false),
+      startRecording,
+      pauseRecording,
+      resumeRecording,
+      stopRecording,
+      mediaBlobUrl,
+      status,
+      isAudioMuted,
+      previewStream: mediaStream.current,
+      clearBlobUrl: () => setMediaBlobUrl(null),
+    };
+  }, [
+    error,
+    muteAudio,
     startRecording,
+    stopRecording,
     pauseRecording,
     resumeRecording,
-    stopRecording,
     mediaBlobUrl,
     status,
     isAudioMuted,
-    previewStream: mediaStream.current
-      ? new MediaStream(mediaStream.current.getVideoTracks())
-      : null,
-    clearBlobUrl: () => setMediaBlobUrl(null),
-  };
+    mediaStream,
+    setMediaBlobUrl,
+  ]);
 }
 
 export const ReactMediaRecorder = (props: ReactMediaRecorderProps) =>
