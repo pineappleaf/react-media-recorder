@@ -84,6 +84,9 @@ export function useReactMediaRecorder({
   const [error, setError] = useState<keyof typeof RecorderErrors>("NONE");
 
   const getMediaStream = useCallback(async () => {
+    if (mediaStream.current) {
+      return;
+    }
     setStatus("acquiring_media");
     const requiredMedia: MediaStreamConstraints = {
       audio: typeof audio === "boolean" ? !!audio : audio,
@@ -111,6 +114,7 @@ export function useReactMediaRecorder({
         const stream = await window.navigator.mediaDevices.getUserMedia(
           requiredMedia
         );
+        console.log("setting mediaStream current", stream);
         mediaStream.current = stream;
       }
       setStatus("idle");
@@ -118,7 +122,7 @@ export function useReactMediaRecorder({
       setError(error.name);
       setStatus("idle");
     }
-  }, [audio, video, screen]);
+  }, [audio, video, screen, customMediaStream, mediaStream.current]);
 
   useEffect(() => {
     if (!window.MediaRecorder) {
