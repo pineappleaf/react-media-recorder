@@ -1,12 +1,59 @@
 /* eslint-disable max-len */
 import {
   ReactElement,
-  useCallback,
-  useEffect,
-  useRef,
   useState,
+  useEffect,
+  useCallback,
+  useRef,
   useMemo,
 } from "react";
+
+export enum MediaPermissions {
+  Granted = "granted",
+  Denied = "denied",
+  Prompt = "prompt",
+}
+
+const MEDIA_PERMISSIONS_KEY = "react-media-recorder.media-permissions";
+
+function setLocalMediaPermissions(permissions: MediaPermissions) {
+  window.localStorage.setItem(MEDIA_PERMISSIONS_KEY, permissions);
+}
+
+function getLocalMediaPermissions() {
+  const permissions = window.localStorage.getItem(MEDIA_PERMISSIONS_KEY);
+  switch (permissions) {
+    case MediaPermissions.Granted:
+      return permissions;
+    default:
+      return MediaPermissions.Prompt;
+  }
+}
+
+export function useQueryMediaPermissions() {
+  return useCallback(async () => {
+    try {
+      const microphone = await window.navigator.permissions.query({
+        name: "microphone",
+      });
+      const camera = await window.navigator.permissions.query({
+        name: "camera",
+      });
+
+      if (camera.state === "granted" && microphone.state === "granted") {
+        return MediaPermissions.Granted;
+      }
+
+      if (camera.state === "prompt" || microphone.state === "prompt") {
+        return MediaPermissions.Prompt;
+      }
+
+      return MediaPermissions.Denied;
+    } catch (error) {
+      return getLocalMediaPermissions();
+    }
+  }, []);
+}
 
 export type ReactMediaRecorderRenderProps = {
   error: string;
@@ -22,6 +69,8 @@ export type ReactMediaRecorderRenderProps = {
   previewStream: MediaStream | null;
   clearBlobUrl: () => void;
   stopMediaStream: () => void;
+  startMediaStream: () => void;
+  mediaPermissions: MediaPermissions;
 };
 
 export type ReactMediaRecorderHookProps = {
@@ -78,6 +127,17 @@ export function useReactMediaRecorder({
   customMediaStream = null,
   stopStreamsOnStop = true,
 }: ReactMediaRecorderHookProps): ReactMediaRecorderRenderProps {
+  const [mediaPermissions, setMediaPermissions] = useState(
+    MediaPermissions.Prompt
+  );
+  const queryMediaPermissions = useQueryMediaPermissions();
+
+  useEffect(() => {
+    (async () => {
+      setMediaPermissions(await queryMediaPermissions());
+    })();
+  }, []);
+
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const mediaChunks = useRef<Blob[]>([]);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
@@ -116,8 +176,13 @@ export function useReactMediaRecorder({
         );
         setMediaStream(stream);
       }
+
+      setLocalMediaPermissions(MediaPermissions.Granted);
+      setMediaPermissions(MediaPermissions.Granted);
       setStatus("idle");
     } catch (err) {
+      setLocalMediaPermissions(MediaPermissions.Prompt);
+      setMediaPermissions(MediaPermissions.Denied);
       setError(err.name);
       setStatus("idle");
     }
@@ -166,13 +231,15 @@ export function useReactMediaRecorder({
         );
       }
     }
-
-    if (!mediaStream) {
-      getMediaStream();
-    }
   }, [audio, screen, video]);
 
   // Media Recorder Handlers
+
+  const startMediaStream = useCallback(() => {
+    if (!mediaStream) {
+      getMediaStream();
+    }
+  }, [mediaStream, getMediaStream]);
 
   const onRecordingStart = useCallback(() => {
     onStart();
@@ -253,14 +320,19 @@ export function useReactMediaRecorder({
       };
       mediaRecorder.current.start();
       setStatus("recording");
+    } else {
+      throw new Error("cannot record without active media stream");
     }
   }, [mediaStream, setError, setStatus]);
 
   const stopMediaStream = useCallback(() => {
-    mediaStream?.getTracks().forEach((track) => {
-      track.stop();
-    });
-  }, [mediaStream]);
+    if (mediaStream) {
+      mediaStream.getTracks().forEach((track) => {
+        track.stop();
+      });
+      setMediaStream(null);
+    }
+  }, [mediaStream, setMediaStream]);
 
   return useMemo(() => {
     return {
@@ -277,6 +349,8 @@ export function useReactMediaRecorder({
       previewStream: mediaStream,
       clearBlobUrl: () => setMediaBlobUrl(null),
       stopMediaStream,
+      startMediaStream,
+      mediaPermissions,
     };
   }, [
     error,
@@ -290,80 +364,8 @@ export function useReactMediaRecorder({
     isAudioMuted,
     mediaStream,
     setMediaBlobUrl,
+    startMediaStream,
     stopMediaStream,
+    mediaPermissions,
   ]);
 }
-
-export enum MediaPermissions {
-  Granted = "granted",
-  Denied = "denied",
-  Prompt = "prompt",
-}
-
-const MEDIA_PERMISSIONS_KEY = "react-media-recorder.media-permissions";
-
-function setMediaPermissions(permissions: MediaPermissions) {
-  window.sessionStorage.setItem(MEDIA_PERMISSIONS_KEY, permissions);
-}
-
-function getMediaPermissions() {
-  const permissions = window.sessionStorage.getItem(MEDIA_PERMISSIONS_KEY);
-  switch (permissions) {
-    case MediaPermissions.Prompt:
-    case MediaPermissions.Granted:
-    case MediaPermissions.Denied:
-      return permissions;
-    default:
-      return MediaPermissions.Prompt;
-  }
-}
-
-export function useQueryMediaPermissions() {
-  return useCallback(async () => {
-    try {
-      const microphone = await window.navigator.permissions.query({
-        name: "microphone",
-      });
-      const camera = await window.navigator.permissions.query({
-        name: "camera",
-      });
-
-      if (camera.state === "granted" && microphone.state === "granted") {
-        return MediaPermissions.Granted;
-      }
-
-      if (camera.state === "prompt" || microphone.state === "prompt") {
-        return MediaPermissions.Prompt;
-      }
-
-      return MediaPermissions.Denied;
-    } catch (error) {
-      return getMediaPermissions();
-    }
-  }, []);
-}
-
-export function useRequestUserMedia() {
-  const queryMediaPermissions = useQueryMediaPermissions();
-  return useCallback(async () => {
-    try {
-      const stream = await window.navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: true,
-      });
-      stream?.getTracks().forEach((track) => {
-        track.stop();
-      });
-      setMediaPermissions(MediaPermissions.Granted);
-    } catch (error) {
-      return MediaPermissions.Denied;
-    }
-
-    const permissions = await queryMediaPermissions();
-
-    return permissions;
-  }, [queryMediaPermissions]);
-}
-
-export const ReactMediaRecorder = (props: ReactMediaRecorderProps) =>
-  props.render(useReactMediaRecorder(props));
