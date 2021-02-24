@@ -300,24 +300,46 @@ export enum MediaPermissions {
   Prompt = "prompt",
 }
 
+const MEDIA_PERMISSIONS_KEY = "react-media-recorder.media-permissions";
+
+function setMediaPermissions(permissions: MediaPermissions) {
+  window.sessionStorage.setItem(MEDIA_PERMISSIONS_KEY, permissions);
+}
+
+function getMediaPermissions() {
+  const permissions = window.sessionStorage.getItem(MEDIA_PERMISSIONS_KEY);
+  switch (permissions) {
+    case MediaPermissions.Prompt:
+    case MediaPermissions.Granted:
+    case MediaPermissions.Denied:
+      return permissions;
+    default:
+      return MediaPermissions.Prompt;
+  }
+}
+
 export function useQueryMediaPermissions() {
   return useCallback(async () => {
-    const microphone = await window.navigator.permissions.query({
-      name: "microphone",
-    });
-    const camera = await window.navigator.permissions.query({
-      name: "camera",
-    });
+    try {
+      const microphone = await window.navigator.permissions.query({
+        name: "microphone",
+      });
+      const camera = await window.navigator.permissions.query({
+        name: "camera",
+      });
 
-    if (camera.state === "granted" && microphone.state === "granted") {
-      return MediaPermissions.Granted;
+      if (camera.state === "granted" && microphone.state === "granted") {
+        return MediaPermissions.Granted;
+      }
+
+      if (camera.state === "prompt" || microphone.state === "prompt") {
+        return MediaPermissions.Prompt;
+      }
+
+      return MediaPermissions.Denied;
+    } catch (error) {
+      return getMediaPermissions();
     }
-
-    if (camera.state === "prompt" || microphone.state === "prompt") {
-      return MediaPermissions.Prompt;
-    }
-
-    return MediaPermissions.Denied;
   }, []);
 }
 
@@ -332,6 +354,7 @@ export function useRequestUserMedia() {
       stream?.getTracks().forEach((track) => {
         track.stop();
       });
+      setMediaPermissions(MediaPermissions.Granted);
     } catch (error) {
       return MediaPermissions.Denied;
     }
