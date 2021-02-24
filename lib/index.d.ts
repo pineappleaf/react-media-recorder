@@ -1,5 +1,11 @@
 /// <reference types="dom-mediacapture-record" />
 import { ReactElement } from "react";
+export declare enum MediaPermissions {
+    Granted = "granted",
+    Denied = "denied",
+    Prompt = "prompt"
+}
+export declare function useQueryMediaPermissions(): () => Promise<MediaPermissions>;
 export declare type ReactMediaRecorderRenderProps = {
     error: string;
     muteAudio: () => void;
@@ -14,6 +20,8 @@ export declare type ReactMediaRecorderRenderProps = {
     previewStream: MediaStream | null;
     clearBlobUrl: () => void;
     stopMediaStream: () => void;
+    startMediaStream: () => void;
+    mediaPermissions: MediaPermissions;
 };
 export declare type ReactMediaRecorderHookProps = {
     audio?: boolean | MediaTrackConstraints;
@@ -42,11 +50,3 @@ export declare enum RecorderErrors {
     UnsupportedBrowserError = "unsupported_browser"
 }
 export declare function useReactMediaRecorder({ audio, video, onStop, onStart, blobPropertyBag, screen, mediaRecorderOptions, customMediaStream, stopStreamsOnStop, }: ReactMediaRecorderHookProps): ReactMediaRecorderRenderProps;
-export declare enum MediaPermissions {
-    Granted = "granted",
-    Denied = "denied",
-    Prompt = "prompt"
-}
-export declare function useQueryMediaPermissions(): () => Promise<MediaPermissions>;
-export declare function useRequestUserMedia(): () => Promise<MediaPermissions>;
-export declare const ReactMediaRecorder: (props: ReactMediaRecorderProps) => ReactElement<any, string | ((props: any) => ReactElement<any, string | any | (new (props: any) => import("react").Component<any, any, any>)> | null) | (new (props: any) => import("react").Component<any, any, any>)>;
