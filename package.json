@@ -1,6 +1,6 @@
 {
   "name": "@pineappleaf/react-media-recorder",
-  "version": "1.4.1-preview12",
+  "version": "1.4.1-preview14",
   "description": "A React component based on MediaRecorder() API to record audio/video streams",
   "main": "index.js",
   "scripts": {
