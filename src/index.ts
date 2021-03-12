@@ -323,7 +323,14 @@ export function useReactMediaRecorder({
     } else {
       throw new Error("cannot record without active media stream");
     }
-  }, [mediaStream, setError, setStatus]);
+  }, [
+    mediaStream,
+    setError,
+    setStatus,
+    onRecordingStart,
+    onRecordingStop,
+    onRecordingActive,
+  ]);
 
   const stopMediaStream = useCallback(() => {
     if (mediaStream) {
